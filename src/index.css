@@ -12,6 +12,7 @@ body,
 #root {
   height: 100%;
   /* Set full height for html, body, and root */
+  width: 100%;
   margin: 0;
   /* Remove default margin */
   padding: 0;

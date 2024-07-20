@@ -65,7 +65,7 @@ def search():
     query_response = pinecone_index.query(
        vector=submitted_description_encoding,
        include_metadata=True, 
-       top_k=5,
+       top_k=15,
        filter= query_filters
     )
 
@@ -116,6 +116,7 @@ def search():
             "trailing_peg_ratio": ticker_info.get("trailingPegRatio"),
             "company_description": ticker_info.get("longBusinessSummary")
         }
+        print("Rev Growth", ticker_info.get("revenueGrowth"))
         companies.append(company_data)
 
     return jsonify(companies)

@@ -63,18 +63,25 @@ function App() {
           onClear={handleClearSearch}
           submitted={submitted}
         />
-        {submitted && (
-          <Box sx={{ mt: 5 }}>
-            {companies.length > 0 ? (
-              <CompanyList companies={companies} />
-            ) : (
-              <Typography variant="body1" align="center">
-                No matching companies found.
-              </Typography>
-            )}
-          </Box>
-        )}
       </Box>
+      {submitted && (
+        <Container
+          sx={{
+            width: "100vw",
+            maxWidth: "100%",
+            mx: "auto",
+            mt: 5,
+          }}
+        >
+          {companies.length > 0 ? (
+            <CompanyList companies={companies} />
+          ) : (
+            <Typography variant="body1" align="center">
+              No matching companies found.
+            </Typography>
+          )}
+        </Container>
+      )}
       {loading && (
         <Backdrop
           sx={{

@@ -1,48 +1,295 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   Container,
   Typography,
-  Accordion,
-  AccordionSummary,
-  AccordionDetails,
-  Card,
-  CardContent,
   Box,
-  Grid,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+  Modal,
+  Button,
+  TableSortLabel,
+  IconButton,
 } from "@mui/material";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import CloseIcon from "@mui/icons-material/Close";
 import { formatCurrency } from "../utils/utils";
+import { alpha } from "@mui/material/styles";
+import "./CompanyList.css"; // Import the CSS file
 
 const CompanyList = ({ companies }) => {
-  const renderCard = (title, data) => {
+  const [open, setOpen] = useState(false);
+  const [selectedCompany, setSelectedCompany] = useState(null);
+  const [order, setOrder] = useState("asc");
+  const [orderBy, setOrderBy] = useState("");
+
+  const handleOpen = (company) => {
+    setSelectedCompany(company);
+    setOpen(true);
+  };
+
+  const handleClose = () => {
+    setOpen(false);
+    setSelectedCompany(null);
+  };
+
+  const headers = [
+    {
+      group: "Valuation Metrics",
+      columns: [
+        "Market Cap",
+        "Enterprise Value",
+        "P/E Ratio (Trailing)",
+        "P/E Ratio (Forward)",
+        "Price to Sales",
+        "Price to Book",
+        "PEG Ratio",
+      ],
+    },
+    {
+      group: "Profitability Metrics",
+      columns: [
+        "Revenue",
+        "Revenue Growth",
+        "Gross Margin",
+        "EBITDA Margin",
+        "Operating Margin",
+        "EBITDA",
+        "Earnings Growth",
+      ],
+    },
+    {
+      group: "Earnings and Dividends",
+      columns: [
+        "Trailing EPS",
+        "Forward EPS",
+        "Dividend Rate",
+        "Dividend Yield",
+      ],
+    },
+    {
+      group: "Financial Health Metrics",
+      columns: [
+        "Total Debt",
+        "Debt to Equity Ratio",
+        "Quick Ratio",
+        "Current Ratio",
+        "Free Cash Flow",
+        "Operating Cash Flow",
+      ],
+    },
+    {
+      group: "Company Information",
+      columns: ["Full Time Employees", "IR Website"],
+    },
+  ];
+
+  const columnKeyMap = {
+    "Market Cap": "market_cap",
+    "Enterprise Value": "enterprise_value",
+    "P/E Ratio (Trailing)": "trailing_pe",
+    "P/E Ratio (Forward)": "forward_pe",
+    "Price to Sales": "price_to_sales_trailing12mo",
+    "Price to Book": "price_to_book",
+    "PEG Ratio": "peg_ratio",
+    Revenue: "revenue",
+    "Revenue Growth": "revenue_growth",
+    "Gross Margin": "gross_margin",
+    "EBITDA Margin": "ebitda_margin",
+    "Operating Margin": "operating_margin",
+    EBITDA: "ebitda",
+    "Earnings Growth": "earnings_growth",
+    "Trailing EPS": "trailing_eps",
+    "Forward EPS": "forward_eps",
+    "Dividend Rate": "forward_dividend",
+    "Dividend Yield": "forward_dividend_yield",
+    "Total Debt": "total_debt",
+    "Debt to Equity Ratio": "debt_to_equity",
+    "Quick Ratio": "quick_ratio",
+    "Current Ratio": "current_ratio",
+    "Free Cash Flow": "free_cash_flow",
+    "Operating Cash Flow": "operating_cashflow",
+    "Full Time Employees": "full_time_employees",
+    "IR Website": "ir_website_link",
+  };
+
+  const handleRequestSort = (property) => {
+    const isAsc = orderBy === property && order === "asc";
+    setOrder(isAsc ? "desc" : "asc");
+    setOrderBy(property);
+  };
+
+  const sortedCompanies = React.useMemo(() => {
+    if (!orderBy) return companies;
+    return [...companies].sort((a, b) => {
+      const aValue = a[columnKeyMap[orderBy]] || 0;
+      const bValue = b[columnKeyMap[orderBy]] || 0;
+      if (order === "asc") {
+        return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
+      }
+      return aValue > bValue ? -1 : aValue < bValue ? 1 : 0;
+    });
+  }, [companies, order, orderBy]);
+
+  const formatValue = (key, value) => {
+    if (value == null) return "N/A";
+
+    const floatValue = parseFloat(value);
+
+    if (
+      key.includes("margin") ||
+      key.includes("growth") ||
+      key === "forward_dividend_yield"
+    ) {
+      console.log(key, `${(floatValue * 100).toFixed(2)}%`);
+      return `${(floatValue * 100).toFixed(2)}%`;
+    }
+
+    if (
+      key.includes("revenue") ||
+      key.includes("market_cap") ||
+      key.includes("enterprise_value") ||
+      key.includes("ebitda") ||
+      key.includes("total_debt") ||
+      key.includes("free_cash_flow") ||
+      key.includes("operating_cashflow")
+    ) {
+      return formatCurrency(floatValue);
+    }
+
+    if (key.includes("eps")) {
+      return "$" + floatValue.toString();
+    }
+
+    if (key.includes("price_to")) {
+      return floatValue.toFixed(2).toString() + "x";
+    }
+
+    return floatValue.toFixed(2);
+  };
+
+  const renderTable = (companies) => {
+    const flatColumns = headers.flatMap((header) => header.columns);
     return (
-      <Grid item xs={12} sm={6}>
-        <Card sx={{ mb: 2, height: "100%" }}>
-          <CardContent>
-            <Typography variant="h6" gutterBottom>
-              {title}
-            </Typography>
-            {data.map((item, index) =>
-              item.value ? (
-                <Typography key={index} variant="body2" sx={{ mb: 1 }}>
-                  <strong>{item.label}:</strong>{" "}
-                  {item.label.includes("Revenue") ||
-                  item.label.includes("Market Capitalization") ||
-                  item.label.includes("Enterprise Value") ||
-                  item.label.includes("EBITDA") ||
-                  item.label.includes("Total Debt") ||
-                  item.label.includes("Free Cash Flow") ||
-                  item.label.includes("Operating Cash Flow")
-                    ? formatCurrency(item.value)
-                    : item.value}
-                </Typography>
-              ) : null
-            )}
-          </CardContent>
-        </Card>
-      </Grid>
+      <TableContainer component={Paper} className="table-container">
+        <Table stickyHeader>
+          <TableHead>
+            <TableRow>
+              <TableCell
+                rowSpan={2}
+                align="center"
+                className="sticky-header sticky-top-left"
+              >
+                Company Name
+              </TableCell>
+              {headers.map((header, idx) => (
+                <TableCell
+                  key={idx}
+                  colSpan={header.columns.length}
+                  align="center"
+                  className="sticky-header"
+                >
+                  {header.group}
+                </TableCell>
+              ))}
+            </TableRow>
+            <TableRow>
+              {flatColumns.map((col, idx) => (
+                <TableCell
+                  key={idx}
+                  align="center"
+                  className="sticky-subheader"
+                >
+                  <TableSortLabel
+                    active={orderBy === col}
+                    direction={orderBy === col ? order : "asc"}
+                    onClick={() => handleRequestSort(col)}
+                  >
+                    {col}
+                  </TableSortLabel>
+                </TableCell>
+              ))}
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {companies.map((company, idx) => (
+              <TableRow
+                key={idx}
+                sx={{
+                  backgroundColor:
+                    idx % 2 === 0 ? "white" : alpha("#add8e6", 0.3),
+                }}
+              >
+                <TableCell align="center" className="sticky-left gray-cell">
+                  <Button onClick={() => handleOpen(company)}>
+                    {company.name}
+                  </Button>
+                </TableCell>
+                {flatColumns.map((col, colIdx) => (
+                  <TableCell key={colIdx} align="center">
+                    {columnKeyMap[col] === "ir_website_link" &&
+                    company[columnKeyMap[col]] ? (
+                      <a
+                        href={company[columnKeyMap[col]]}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        IR Website
+                      </a>
+                    ) : (
+                      formatValue(columnKeyMap[col], company[columnKeyMap[col]])
+                    )}
+                  </TableCell>
+                ))}
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
     );
   };
+
+  const renderModal = () => (
+    <Modal open={open} onClose={handleClose}>
+      <Box
+        sx={{
+          position: "absolute",
+          top: "50%",
+          left: "50%",
+          transform: "translate(-50%, -50%)",
+          width: 400,
+          bgcolor: "background.paper",
+          border: "2px solid #000",
+          boxShadow: 24,
+          p: 4,
+        }}
+      >
+        {selectedCompany && (
+          <>
+            <Box
+              display="flex"
+              justifyContent="space-between"
+              alignItems="center"
+            >
+              <Typography variant="h6" gutterBottom>
+                {selectedCompany.name} ({selectedCompany.exchange}:{" "}
+                {selectedCompany.ticker})
+              </Typography>
+              <IconButton onClick={handleClose}>
+                <CloseIcon />
+              </IconButton>
+            </Box>
+            <Typography variant="body2" color="text.secondary" paragraph>
+              {selectedCompany.company_description}
+            </Typography>
+          </>
+        )}
+      </Box>
+    </Modal>
+  );
 
   return (
     <Container>
@@ -51,125 +298,9 @@ const CompanyList = ({ companies }) => {
           No results found.
         </Typography>
       ) : (
-        companies.map((company, index) => (
-          <Box key={index} sx={{ mt: 2 }}>
-            <Accordion>
-              <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                <Typography variant="h6">
-                  {company.name} ({company.exchange}: {company.ticker})
-                </Typography>
-              </AccordionSummary>
-              <AccordionDetails>
-                <Box sx={{ mb: 2 }}>
-                  <Typography variant="body2" color="text.secondary">
-                    {company.company_description}
-                  </Typography>
-                </Box>
-                <Grid container spacing={2}>
-                  {renderCard("Valuation Metrics", [
-                    {
-                      label: "Market Capitalization",
-                      value: company.market_cap,
-                    },
-                    {
-                      label: "Enterprise Value",
-                      value: company.enterprise_value,
-                    },
-                    {
-                      label: "Price to Earnings Ratio (Trailing)",
-                      value: company.trailing_pe,
-                    },
-                    {
-                      label: "Price to Earnings Ratio (Forward)",
-                      value: company.forward_pe,
-                    },
-                    {
-                      label: "Price to Sales Ratio (Trailing 12 Months)",
-                      value: company.price_to_sales_trailing12mo,
-                    },
-                    {
-                      label: "Price to Book Ratio",
-                      value: company.price_to_book,
-                    },
-                    { label: "PEG Ratio", value: company.peg_ratio },
-                    {
-                      label: "Trailing PEG Ratio",
-                      value: company.trailing_peg_ratio,
-                    },
-                  ])}
-                  {renderCard("Profitability Metrics", [
-                    { label: "Revenue", value: company.revenue },
-                    { label: "Revenue Growth", value: company.revenue_growth },
-                    { label: "Gross Margin", value: company.gross_margin },
-                    { label: "EBITDA Margin", value: company.ebitda_margin },
-                    {
-                      label: "Operating Margin",
-                      value: company.operating_margin,
-                    },
-                    { label: "EBITDA", value: company.ebitda },
-                    {
-                      label: "Earnings Growth",
-                      value: company.earnings_growth,
-                    },
-                  ])}
-                  {renderCard("Earnings and Dividends", [
-                    {
-                      label: "Earnings Per Share (Trailing)",
-                      value: company.trailing_eps,
-                    },
-                    {
-                      label: "Earnings Per Share (Forward)",
-                      value: company.forward_eps,
-                    },
-                    {
-                      label: "Forward Dividend Rate",
-                      value: company.forward_dividend,
-                    },
-                    {
-                      label: "Forward Dividend Yield",
-                      value: company.forward_dividend_yield
-                        ? `${company.forward_dividend_yield}%`
-                        : null,
-                    },
-                  ])}
-                  {renderCard("Financial Health Metrics", [
-                    { label: "Total Debt", value: company.total_debt },
-                    {
-                      label: "Debt to Equity Ratio",
-                      value: company.debt_to_equity,
-                    },
-                    { label: "Quick Ratio", value: company.quick_ratio },
-                    { label: "Current Ratio", value: company.current_ratio },
-                    { label: "Free Cash Flow", value: company.free_cash_flow },
-                    {
-                      label: "Operating Cash Flow",
-                      value: company.operating_cashflow,
-                    },
-                  ])}
-                  {renderCard("Company Information", [
-                    {
-                      label: "Full Time Employees",
-                      value: company.full_time_employees,
-                    },
-                    {
-                      label: "",
-                      value: company.ir_website_link ? (
-                        <a
-                          href={company.ir_website_link}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          Investor Relations Website
-                        </a>
-                      ) : null,
-                    },
-                  ])}
-                </Grid>
-              </AccordionDetails>
-            </Accordion>
-          </Box>
-        ))
+        renderTable(sortedCompanies)
       )}
+      {renderModal()}
     </Container>
   );
 };

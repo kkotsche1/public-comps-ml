@@ -1,0 +1,36 @@
+.table-container {
+    max-height: 80vh;
+    overflow: auto;
+}
+
+.sticky-header {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    background-color: #e0e0e0 !important;
+}
+
+.sticky-subheader {
+    position: sticky;
+    z-index: 2;
+    background-color: #e0e0e0 !important;
+}
+
+.sticky-left {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    background-color: #e0e0e0;
+}
+
+.sticky-top-left {
+    position: sticky;
+    top: 0;
+    left: 0;
+    z-index: 999999 !important;
+    background-color: #e0e0e0;
+}
+
+.gray-cell {
+    background-color: #e0e0e0;
+}
