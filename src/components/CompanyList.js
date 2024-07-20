@@ -18,6 +18,8 @@ import {
 import CloseIcon from "@mui/icons-material/Close";
 import { formatCurrency } from "../utils/utils";
 import { alpha } from "@mui/material/styles";
+import { CSVLink } from "react-csv";
+import * as XLSX from "xlsx";
 import "./CompanyList.css"; // Import the CSS file
 
 const CompanyList = ({ companies }) => {
@@ -144,7 +146,6 @@ const CompanyList = ({ companies }) => {
       key.includes("growth") ||
       key === "forward_dividend_yield"
     ) {
-      console.log(key, `${(floatValue * 100).toFixed(2)}%`);
       return `${(floatValue * 100).toFixed(2)}%`;
     }
 
@@ -291,8 +292,58 @@ const CompanyList = ({ companies }) => {
     </Modal>
   );
 
+  const generateCSVData = () => {
+    const flatColumns = headers.flatMap((header) => header.columns);
+    const csvData = companies.map((company) => {
+      const row = { "Company Name": company.name };
+      flatColumns.forEach((col) => {
+        row[col] = formatValue(columnKeyMap[col], company[columnKeyMap[col]]);
+      });
+      return row;
+    });
+    return csvData;
+  };
+
+  const exportToXLSX = () => {
+    const flatColumns = headers.flatMap((header) => header.columns);
+    const wsData = [
+      ["Company Name", ...flatColumns],
+      ...companies.map((company) => {
+        return [
+          company.name,
+          ...flatColumns.map((col) =>
+            formatValue(columnKeyMap[col], company[columnKeyMap[col]])
+          ),
+        ];
+      }),
+    ];
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Companies");
+    XLSX.writeFile(wb, "comps.xlsx");
+  };
+
   return (
     <Container>
+      <Box display="flex" justifyContent="flex-end" mb={2}>
+        <Button
+          variant="outlined"
+          color="primary"
+          onClick={exportToXLSX}
+          style={{ marginRight: "10px" }}
+        >
+          Export as XLSX
+        </Button>
+        <CSVLink
+          data={generateCSVData()}
+          filename={"comps.csv"}
+          className="btn btn-primary"
+        >
+          <Button variant="outlined" color="primary">
+            Export as CSV
+          </Button>
+        </CSVLink>
+      </Box>
       {companies.length === 0 ? (
         <Typography variant="body1" align="center">
           No results found.
