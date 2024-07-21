@@ -36,3 +36,4 @@ backend/scraping/chromedriver.exe
 *.xlsx
 *.csv
 *.exe
+*.gz

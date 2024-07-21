@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Box,
   Button,
@@ -18,12 +18,12 @@ import {
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import Select from "react-select";
 import makeAnimated from "react-select/animated";
+import debounce from "lodash.debounce";
 import {
   countriesList,
   sectorsList,
   industriesList,
 } from "../data/filterLists";
-import { companies } from "../data/companies";
 
 const animatedComponents = makeAnimated();
 
@@ -40,6 +40,27 @@ const SearchForm = ({ onSubmit, onClear, submitted }) => {
   const [employeesMax, setEmployeesMax] = useState("");
   const [selectedCompany, setSelectedCompany] = useState(null);
   const [isSearchingByCompany, setIsSearchingByCompany] = useState(true); // Default to company search
+  const [companyOptions, setCompanyOptions] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [searchInput, setSearchInput] = useState("");
+
+  useEffect(() => {
+    // Fetch company data
+    const fetchCompanies = async () => {
+      setIsLoading(true);
+      const response = await fetch("/companies.json");
+      const data = await response.json();
+      setCompanyOptions(
+        data.map((company) => ({
+          value: company.ticker,
+          label: `${company.name} (${company.ticker} - ${company.exchange})`,
+        }))
+      );
+      setIsLoading(false);
+    };
+
+    fetchCompanies();
+  }, []);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -114,17 +135,27 @@ const SearchForm = ({ onSubmit, onClear, submitted }) => {
     }),
   };
 
-  const formatCompanyOptions = () => {
-    return companies.map((company) => ({
-      value: company.ISIN,
-      label: `${company.name} (${company.ticker} - ${company.ISIN})`,
-    }));
-  };
-
   const handleCompanyChange = (selectedOption) => {
     console.log("Selected company:", selectedOption);
     setSelectedCompany(selectedOption);
   };
+
+  const filterCompanies = (inputValue) => {
+    if (inputValue.length < 2) {
+      return [];
+    }
+    return companyOptions.filter((company) =>
+      company.label.toLowerCase().includes(inputValue.toLowerCase())
+    );
+  };
+
+  const debouncedFilterCompanies = useCallback(
+    debounce((inputValue) => {
+      setSearchInput(inputValue);
+      filterCompanies(inputValue);
+    }, 300),
+    [companyOptions]
+  );
 
   return (
     <Container>
@@ -175,15 +206,22 @@ const SearchForm = ({ onSubmit, onClear, submitted }) => {
                 <Box sx={{ mb: 3 }}>
                   <Select
                     components={animatedComponents}
-                    options={formatCompanyOptions()}
+                    options={filterCompanies(searchInput)}
+                    isLoading={isLoading}
                     value={selectedCompany}
+                    onInputChange={debouncedFilterCompanies}
                     onChange={handleCompanyChange}
                     getOptionLabel={(option) => option.label}
                     getOptionValue={(option) => option.value}
-                    placeholder="Start typing company name, ticker, or ISIN"
+                    placeholder="Start typing company name, ticker, or exchange"
                     styles={customStyles}
                     menuPortalTarget={document.body} // Ensures the menu is not constrained by the parent
                     menuPosition="fixed"
+                    noOptionsMessage={() =>
+                      searchInput.length < 2
+                        ? "Enter at least 2 characters"
+                        : "No options"
+                    }
                   />
                 </Box>
               </>
