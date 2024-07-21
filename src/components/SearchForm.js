@@ -9,7 +9,11 @@ import {
   AccordionSummary,
   AccordionDetails,
   Grid,
-  Chip,
+  Switch,
+  FormControlLabel,
+  FormGroup,
+  Card,
+  CardContent,
 } from "@mui/material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import Select from "react-select";
@@ -19,6 +23,7 @@ import {
   sectorsList,
   industriesList,
 } from "../data/filterLists";
+import { companies } from "../data/companies";
 
 const animatedComponents = makeAnimated();
 
@@ -33,6 +38,8 @@ const SearchForm = ({ onSubmit, onClear, submitted }) => {
   const [revenueMax, setRevenueMax] = useState("");
   const [employeesMin, setEmployeesMin] = useState("");
   const [employeesMax, setEmployeesMax] = useState("");
+  const [selectedCompany, setSelectedCompany] = useState(null);
+  const [isSearchingByCompany, setIsSearchingByCompany] = useState(true); // Default to company search
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -50,22 +57,40 @@ const SearchForm = ({ onSubmit, onClear, submitted }) => {
       return;
     }
 
-    onSubmit({
-      description,
-      countries: countries.map((country) => country.value),
-      sectors: sectors.map((sector) => sector.value),
-      industries: industries.map((industry) => industry.value),
-      marketCapMin,
-      marketCapMax,
-      revenueMin,
-      revenueMax,
-      employeesMin,
-      employeesMax,
-    });
+    if (isSearchingByCompany && selectedCompany) {
+      onSubmit({
+        company: selectedCompany,
+        countries: countries.map((country) => country.value),
+        sectors: sectors.map((sector) => sector.value),
+        industries: industries.map((industry) => industry.value),
+        marketCapMin,
+        marketCapMax,
+        revenueMin,
+        revenueMax,
+        employeesMin,
+        employeesMax,
+      });
+    } else if (!isSearchingByCompany && description) {
+      onSubmit({
+        description,
+        countries: countries.map((country) => country.value),
+        sectors: sectors.map((sector) => sector.value),
+        industries: industries.map((industry) => industry.value),
+        marketCapMin,
+        marketCapMax,
+        revenueMin,
+        revenueMax,
+        employeesMin,
+        employeesMax,
+      });
+    } else {
+      alert("Please provide either a company or a description.");
+    }
   };
 
   const handleClear = () => {
     setDescription("");
+    setSelectedCompany(null);
     setCountries([]);
     setSectors([]);
     setIndustries([]);
@@ -89,26 +114,101 @@ const SearchForm = ({ onSubmit, onClear, submitted }) => {
     }),
   };
 
+  const formatCompanyOptions = () => {
+    return companies.map((company) => ({
+      value: company.ISIN,
+      label: `${company.name} (${company.ticker} - ${company.ISIN})`,
+    }));
+  };
+
+  const handleCompanyChange = (selectedOption) => {
+    console.log("Selected company:", selectedOption);
+    setSelectedCompany(selectedOption);
+  };
+
   return (
     <Container>
       <Box
         component="form"
         onSubmit={handleSubmit}
-        sx={{ mt: 3, textAlign: "center" }}
+        sx={{ mt: 3, textAlign: "center", maxWidth: 600, margin: "auto" }}
       >
         <Typography variant="body1" gutterBottom>
-          Provide a description of the company you would like to find
-          comparables for.
+          You can search for comparables either by providing a description for a
+          company, or by searching for the company from the dropdown.
         </Typography>
-        <TextField
-          label="Company Description"
-          fullWidth
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          margin="normal"
-          multiline
-          rows={3}
-        />
+        <FormGroup row sx={{ justifyContent: "center", mb: 2 }}>
+          <Typography
+            variant="body1"
+            gutterBottom
+            sx={{ lineHeight: "32px", mr: 1 }}
+          >
+            Description
+          </Typography>
+          <FormControlLabel
+            control={
+              <Switch
+                checked={isSearchingByCompany}
+                onChange={() => setIsSearchingByCompany(!isSearchingByCompany)}
+                color="primary"
+              />
+            }
+            label=""
+            sx={{ m: 0 }}
+          />
+          <Typography
+            variant="body1"
+            gutterBottom
+            sx={{ lineHeight: "32px", ml: 1 }}
+          >
+            Company
+          </Typography>
+        </FormGroup>
+
+        <Card variant="outlined" sx={{ mb: 3 }}>
+          <CardContent>
+            {isSearchingByCompany ? (
+              <>
+                <Typography variant="body1" gutterBottom>
+                  Select a company:
+                </Typography>
+                <Box sx={{ mb: 3 }}>
+                  <Select
+                    components={animatedComponents}
+                    options={formatCompanyOptions()}
+                    value={selectedCompany}
+                    onChange={handleCompanyChange}
+                    getOptionLabel={(option) => option.label}
+                    getOptionValue={(option) => option.value}
+                    placeholder="Start typing company name, ticker, or ISIN"
+                    styles={customStyles}
+                    menuPortalTarget={document.body} // Ensures the menu is not constrained by the parent
+                    menuPosition="fixed"
+                  />
+                </Box>
+              </>
+            ) : (
+              <>
+                <Typography variant="body1" gutterBottom>
+                  Provide a description of the company you would like to find
+                  comparables for:
+                </Typography>
+                <Box sx={{ mb: 3 }}>
+                  <TextField
+                    label="Company Description"
+                    fullWidth
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    margin="normal"
+                    multiline
+                    rows={3}
+                  />
+                </Box>
+              </>
+            )}
+          </CardContent>
+        </Card>
+
         <Accordion
           sx={{ backgroundColor: (theme) => theme.palette.background.offWhite }}
         >
@@ -207,6 +307,12 @@ const SearchForm = ({ onSubmit, onClear, submitted }) => {
             </Grid>
           </AccordionDetails>
         </Accordion>
+
+        <Typography variant="body2" color="textSecondary" sx={{ mt: 2 }}>
+          Note: Only one of the two entry methods (company or description) will
+          be used in the search.
+        </Typography>
+
         <Box
           sx={{
             display: "flex",
