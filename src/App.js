@@ -17,11 +17,16 @@ function App() {
   const [userSelectedCompany, setUserSelectedCompany] = useState(null);
   const companyListRef = useRef(null);
 
+  useEffect(() => {
+    // Set the document title when the component mounts
+    document.title = "Comparables Finder";
+  }, []);
+
   const handleSearchSubmit = async (searchData) => {
     console.log("Search data:", searchData);
     setLoading(true);
     setUserSelectedCompany(null); // Reset the user selected company
-    setCompanies([]); // Clear the previous CompanyList
+    setSubmitted(false); // Clear the previous results by hiding the CompanyList
 
     try {
       let response;

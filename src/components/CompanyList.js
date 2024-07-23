@@ -336,9 +336,16 @@ const CompanyList = ({ companies, userSelectedCompany }) => {
   const generateCSVData = () => {
     const flatColumns = headers.flatMap((header) => header.columns);
     const csvData = companies.map((company) => {
-      const row = { "Company Name": company.name };
+      const row = {
+        "Company Name": company.name,
+        "Company Description": company.company_description,
+      };
       flatColumns.forEach((col) => {
-        row[col] = formatValue(columnKeyMap[col], company[columnKeyMap[col]]);
+        if (col === "IR Website") {
+          row[col] = company[columnKeyMap[col]] || "N/A";
+        } else {
+          row[col] = formatValue(columnKeyMap[col], company[columnKeyMap[col]]);
+        }
       });
       return row;
     });
@@ -348,12 +355,15 @@ const CompanyList = ({ companies, userSelectedCompany }) => {
   const exportToXLSX = () => {
     const flatColumns = headers.flatMap((header) => header.columns);
     const wsData = [
-      ["Company Name", ...flatColumns],
+      ["Company Name", "Company Description", ...flatColumns],
       ...companies.map((company) => {
         return [
           company.name,
+          company.company_description,
           ...flatColumns.map((col) =>
-            formatValue(columnKeyMap[col], company[columnKeyMap[col]])
+            col === "IR Website"
+              ? company[columnKeyMap[col]] || "N/A"
+              : formatValue(columnKeyMap[col], company[columnKeyMap[col]])
           ),
         ];
       }),
