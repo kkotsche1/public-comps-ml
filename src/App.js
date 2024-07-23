@@ -20,10 +20,21 @@ function App() {
     setLoading(true);
 
     try {
-      const response = await axios.post(
-        "http://localhost:5000/search",
-        searchData
-      );
+      let response;
+
+      // Check if searchData contains the 'company' attribute
+      if (searchData.company) {
+        const requestData = {
+          ticker: searchData.company.value,
+        };
+        response = await axios.post(
+          "http://localhost:5000/search_ticker",
+          requestData
+        );
+      } else {
+        response = await axios.post("http://localhost:5000/search", searchData);
+      }
+
       setCompanies(response.data);
       setSubmitted(true);
     } catch (error) {
