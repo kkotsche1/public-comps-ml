@@ -37,9 +37,13 @@ function App() {
           ticker: searchData.company.value,
         };
         response = await axios.post(
-          "http://localhost:5000/search_ticker",
+          //"http://localhost:5000/search_ticker",
+          "https://search-ticker-htv2wlstgq-uc.a.run.app",
           requestData
         );
+
+        console.log(response.status);
+        console.log(response);
 
         // Set the user selected company separately
         setUserSelectedCompany(
@@ -48,7 +52,11 @@ function App() {
           )
         );
       } else {
-        response = await axios.post("http://localhost:5000/search", searchData);
+        response = await axios.post(
+          //"http://localhost:5000/search",
+          "https://search-description-htv2wlstgq-uc.a.run.app",
+          searchData
+        );
       }
 
       setCompanies(response.data);

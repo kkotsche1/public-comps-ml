@@ -37,3 +37,16 @@ backend/scraping/chromedriver.exe
 *.csv
 *.exe
 *.gz
+*.env
+
+functions/
+functions
+functions/venv
+
+build
+build/
+
+.firebasesrc
+firebase.json
+package-lock.json
+package.json
