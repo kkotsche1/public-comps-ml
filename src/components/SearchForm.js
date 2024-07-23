@@ -251,9 +251,9 @@ const SearchForm = ({ onSubmit, onClear, submitted }) => {
           sx={{ backgroundColor: (theme) => theme.palette.background.offWhite }}
         >
           <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-            <Typography>Filtering Options</Typography>
+            <Typography>Filtering Options (Coming Soon)</Typography>
           </AccordionSummary>
-          <AccordionDetails>
+          {/* <AccordionDetails>
             <Box mb={2}>
               <Select
                 components={animatedComponents}
@@ -343,7 +343,7 @@ const SearchForm = ({ onSubmit, onClear, submitted }) => {
                 />
               </Grid>
             </Grid>
-          </AccordionDetails>
+          </AccordionDetails> */}
         </Accordion>
 
         <Typography variant="body2" color="textSecondary" sx={{ mt: 2 }}>

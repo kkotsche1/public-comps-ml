@@ -22,6 +22,15 @@ def create_embedding(text):
     )
     return response.data[0].embedding
 
+# Function to filter out companies with more than 80% "N/A" or null values
+def filter_companies_with_high_na(companies, threshold=0.8):
+    filtered_companies = []
+    for company in companies:
+        na_count = sum(1 for value in company.values() if value in [None, "N/A"])
+        if na_count / len(company) <= threshold:
+            filtered_companies.append(company)
+    return filtered_companies
+
 # Instantiating pinecone index via the pinecone client
 pinecone_index = Pinecone(
     api_key=os.environ.get("PINECONE_API_KEY")
@@ -118,6 +127,9 @@ def search():
         if not any(is_similar(company, unique_company) for unique_company in unique_companies):
             unique_companies.append(company)
 
+    # Filtering out companies where there is no available financial data (indicated by all fields being N/A)
+    unique_companies = filter_companies_with_high_na(unique_companies)
+
     return jsonify(unique_companies)
 
 @app.route('/search_ticker', methods=['POST'])
@@ -192,6 +204,10 @@ def search_ticker():
     for company in companies:
         if not any(is_similar(company, unique_company) for unique_company in unique_companies):
             unique_companies.append(company)
+
+    # Filtering out companies where there is no available financial data (indicated by all fields being N/A)
+    unique_companies = filter_companies_with_high_na(unique_companies)
+    
 
     return jsonify(unique_companies)
 

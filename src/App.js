@@ -1,6 +1,4 @@
-// App.js
-
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   Container,
   Typography,
@@ -17,11 +15,13 @@ function App() {
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [userSelectedCompany, setUserSelectedCompany] = useState(null);
+  const companyListRef = useRef(null);
 
   const handleSearchSubmit = async (searchData) => {
     console.log("Search data:", searchData);
     setLoading(true);
     setUserSelectedCompany(null); // Reset the user selected company
+    setCompanies([]); // Clear the previous CompanyList
 
     try {
       let response;
@@ -62,6 +62,15 @@ function App() {
     setUserSelectedCompany(null); // Reset the user selected company
   };
 
+  useEffect(() => {
+    if (submitted && companyListRef.current) {
+      companyListRef.current.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    }
+  }, [submitted, companies]);
+
   return (
     <Container
       sx={{
@@ -89,6 +98,7 @@ function App() {
       </Box>
       {submitted && (
         <Container
+          ref={companyListRef}
           sx={{
             width: "100vw",
             maxWidth: "100%",
