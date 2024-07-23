@@ -11,25 +11,28 @@ load_dotenv(dotenv_path=r"C:\Users\Admin\PycharmProjects\public-comps\.env")
 app = Flask(__name__)
 CORS(app)
 
-
 # Instantiating OpenAI Client
-openai_client = OpenAI(
-    api_key = os.environ.get("OPENAI_API_KEY")
-)
+openai_client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
 # Function to create an embedding from the submitted description
 def create_embedding(text):
     response = openai_client.embeddings.create(
-      model="text-embedding-3-large",
-      input=text
+        model="text-embedding-3-large",
+        input=text
     )
     return response.data[0].embedding
 
 # Instantiating pinecone index via the pinecone client
 pinecone_index = Pinecone(
-    api_key = os.environ.get("PINECONE_API_KEY")
+    api_key=os.environ.get("PINECONE_API_KEY")
 ).Index(host=os.environ.get("PINECONE_INDEX_HOST"))
 
+# Similarity check function
+def is_similar(company1, company2, threshold=0.8):
+    fields = company1.keys()
+    match_count = sum(1 for field in fields if company1[field] == company2[field])
+    similarity = match_count / len(fields)
+    return similarity >= threshold
 
 @app.route('/search', methods=['POST'])
 def search():
@@ -38,17 +41,6 @@ def search():
     submitted_description = data["description"]
     submitted_country_list = data["countries"]
     submitted_sector_list = data["sectors"]
-
-    ## Not using the following options to filter as they are dynamic and we need to first figure out a way to keep that info up to date in our 
-    ## Pinecone index in order to make the filtering accurate 
-
-    # submitted_min_marketcap = data["marketCapMin"]
-    # submitted_max_marketcap = data["marketCapMax"]
-    # submitted_min_revenue = data["revenueMin"]
-    # submitted_max_revenue = data["revenueMax"]
-    # submitted_min_employees = data["employeesMin"]
-    # submitted_max_employees = data["employeesMax"]
-
 
     # Generating an encoding for the submitted company description
     submitted_description_encoding = create_embedding(submitted_description)
@@ -64,10 +56,10 @@ def search():
 
     # Querying our pinecone index to find matches
     query_response = pinecone_index.query(
-       vector=submitted_description_encoding,
-       include_metadata=True, 
-       top_k=15,
-       filter= query_filters
+        vector=submitted_description_encoding,
+        include_metadata=True,
+        top_k=15,
+        filter=query_filters
     )
 
     print("RESPONSE:", query_response)
@@ -120,8 +112,13 @@ def search():
         print("Rev Growth", ticker_info.get("revenueGrowth"))
         companies.append(company_data)
 
-    return jsonify(companies)
+    # Filter out similar companies
+    unique_companies = []
+    for company in companies:
+        if not any(is_similar(company, unique_company) for unique_company in unique_companies):
+            unique_companies.append(company)
 
+    return jsonify(unique_companies)
 
 @app.route('/search_ticker', methods=['POST'])
 def search_ticker():
@@ -139,9 +136,9 @@ def search_ticker():
 
     # Querying our pinecone index to find matches
     query_response = pinecone_index.query(
-       vector=summary_encoding,
-       include_metadata=True,
-       top_k=15
+        vector=summary_encoding,
+        include_metadata=True,
+        top_k=15
     )
 
     companies = []
@@ -190,7 +187,13 @@ def search_ticker():
         }
         companies.append(company_data)
 
-    return jsonify(companies)
+    # Filter out similar companies
+    unique_companies = []
+    for company in companies:
+        if not any(is_similar(company, unique_company) for unique_company in unique_companies):
+            unique_companies.append(company)
+
+    return jsonify(unique_companies)
 
 if __name__ == '__main__':
     app.run(debug=True)

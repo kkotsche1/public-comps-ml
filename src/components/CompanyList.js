@@ -22,7 +22,7 @@ import { CSVLink } from "react-csv";
 import * as XLSX from "xlsx";
 import "./CompanyList.css"; // Import the CSS file
 
-const CompanyList = ({ companies }) => {
+const CompanyList = ({ companies, userSelectedCompany }) => {
   const [open, setOpen] = useState(false);
   const [selectedCompany, setSelectedCompany] = useState(null);
   const [order, setOrder] = useState("asc");
@@ -136,6 +136,15 @@ const CompanyList = ({ companies }) => {
     });
   }, [companies, order, orderBy]);
 
+  const finalCompaniesList = React.useMemo(() => {
+    if (userSelectedCompany) {
+      return sortedCompanies.filter(
+        (company) => company.ticker !== userSelectedCompany.ticker
+      );
+    }
+    return sortedCompanies;
+  }, [sortedCompanies, userSelectedCompany]);
+
   const formatValue = (key, value) => {
     if (value == null) return "N/A";
 
@@ -180,12 +189,10 @@ const CompanyList = ({ companies }) => {
           <TableHead>
             <TableRow>
               <TableCell
-                rowSpan={2}
+                colSpan={1}
                 align="center"
                 className="sticky-header sticky-top-left"
-              >
-                Company Name
-              </TableCell>
+              ></TableCell>
               {headers.map((header, idx) => (
                 <TableCell
                   key={idx}
@@ -198,6 +205,12 @@ const CompanyList = ({ companies }) => {
               ))}
             </TableRow>
             <TableRow>
+              <TableCell
+                align="center"
+                className="sticky-subheader sticky-top-left"
+              >
+                Company Name
+              </TableCell>
               {flatColumns.map((col, idx) => (
                 <TableCell
                   key={idx}
@@ -214,6 +227,34 @@ const CompanyList = ({ companies }) => {
                 </TableCell>
               ))}
             </TableRow>
+            {userSelectedCompany && (
+              <TableRow className="fixed-row green-cell">
+                <TableCell align="center" className="sticky-left green-cell">
+                  <Button onClick={() => handleOpen(userSelectedCompany)}>
+                    {userSelectedCompany?.name}
+                  </Button>
+                </TableCell>
+                {flatColumns.map((col, colIdx) => (
+                  <TableCell key={colIdx} align="center" className="green-cell">
+                    {columnKeyMap[col] === "ir_website_link" &&
+                    userSelectedCompany?.[columnKeyMap[col]] ? (
+                      <a
+                        href={userSelectedCompany[columnKeyMap[col]]}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        IR Website
+                      </a>
+                    ) : (
+                      formatValue(
+                        columnKeyMap[col],
+                        userSelectedCompany?.[columnKeyMap[col]]
+                      )
+                    )}
+                  </TableCell>
+                ))}
+              </TableRow>
+            )}
           </TableHead>
           <TableBody>
             {companies.map((company, idx) => (
@@ -349,7 +390,7 @@ const CompanyList = ({ companies }) => {
           No results found.
         </Typography>
       ) : (
-        renderTable(sortedCompanies)
+        renderTable(finalCompaniesList)
       )}
       {renderModal()}
     </Container>

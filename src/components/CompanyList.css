@@ -4,33 +4,48 @@
 }
 
 .sticky-header {
-    position: sticky;
+    position: sticky !important;
     top: 0;
     z-index: 3;
     background-color: #e0e0e0 !important;
 }
 
 .sticky-subheader {
-    position: sticky;
+    position: sticky !important;
+    top: 48px;
+    /* Adjust based on your header height */
     z-index: 2;
     background-color: #e0e0e0 !important;
 }
 
 .sticky-left {
-    position: sticky;
+    position: sticky !important;
     left: 0;
-    z-index: 1;
+    z-index: 15 !important;
     background-color: #e0e0e0;
 }
 
 .sticky-top-left {
-    position: sticky;
+    position: sticky !important;
     top: 0;
     left: 0;
-    z-index: 999999 !important;
+    z-index: 99 !important;
     background-color: #e0e0e0;
 }
 
 .gray-cell {
     background-color: #e0e0e0;
+}
+
+.green-cell {
+    background-color: lightgreen !important;
+}
+
+/* Style for the fixed user-selected row */
+.fixed-row {
+    position: sticky !important;
+    top: 96px;
+    /* Adjust based on header and subheader heights */
+    z-index: 1000 !important;
+    background-color: lightgreen !important;
 }

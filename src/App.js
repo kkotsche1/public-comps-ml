@@ -1,3 +1,5 @@
+// App.js
+
 import React, { useState } from "react";
 import {
   Container,
@@ -14,10 +16,12 @@ function App() {
   const [companies, setCompanies] = useState([]);
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [userSelectedCompany, setUserSelectedCompany] = useState(null);
 
   const handleSearchSubmit = async (searchData) => {
     console.log("Search data:", searchData);
     setLoading(true);
+    setUserSelectedCompany(null); // Reset the user selected company
 
     try {
       let response;
@@ -30,6 +34,13 @@ function App() {
         response = await axios.post(
           "http://localhost:5000/search_ticker",
           requestData
+        );
+
+        // Set the user selected company separately
+        setUserSelectedCompany(
+          response.data.find(
+            (company) => company.ticker === searchData.company.value
+          )
         );
       } else {
         response = await axios.post("http://localhost:5000/search", searchData);
@@ -48,6 +59,7 @@ function App() {
   const handleClearSearch = () => {
     setCompanies([]);
     setSubmitted(false);
+    setUserSelectedCompany(null); // Reset the user selected company
   };
 
   return (
@@ -85,7 +97,10 @@ function App() {
           }}
         >
           {companies.length > 0 ? (
-            <CompanyList companies={companies} />
+            <CompanyList
+              companies={companies}
+              userSelectedCompany={userSelectedCompany}
+            />
           ) : (
             <Typography variant="body1" align="center">
               No matching companies found.
