@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Container,
   Typography,
@@ -10,118 +10,98 @@ import {
   TableHead,
   TableRow,
   Paper,
-  Modal,
   Button,
   TableSortLabel,
-  IconButton,
+  Tooltip,
 } from "@mui/material";
-import CloseIcon from "@mui/icons-material/Close";
-import { formatCurrency } from "../utils/utils";
 import { alpha } from "@mui/material/styles";
 import { CSVLink } from "react-csv";
-import * as XLSX from "xlsx";
+import {
+  headers,
+  columnKeyMap,
+  formatValue,
+  generateCSVData,
+  exportToXLSX,
+} from "../utils/CompanyListUtils";
 import "./CompanyList.css"; // Import the CSS file
+import * as d3 from "d3";
 
-const CompanyList = ({ companies, userSelectedCompany }) => {
-  const [open, setOpen] = useState(false);
-  const [selectedCompany, setSelectedCompany] = useState(null);
+const CompanyList = ({ companies: initialCompanies, userSelectedCompany }) => {
   const [order, setOrder] = useState("asc");
   const [orderBy, setOrderBy] = useState("");
+  const [companies, setCompanies] = useState(initialCompanies);
+  const [metrics, setMetrics] = useState({});
 
-  const handleOpen = (company) => {
-    setSelectedCompany(company);
-    setOpen(true);
+  const topTableRef = useRef(null);
+  const bottomTableRef = useRef(null);
+
+  const syncScroll = (source, target) => {
+    if (target.current) {
+      target.current.scrollLeft = source.current.scrollLeft;
+    }
   };
 
-  const handleClose = () => {
-    setOpen(false);
-    setSelectedCompany(null);
-  };
+  useEffect(() => {
+    const handleTopScroll = () => syncScroll(topTableRef, bottomTableRef);
+    const handleBottomScroll = () => syncScroll(bottomTableRef, topTableRef);
 
-  const headers = [
-    {
-      group: "Valuation Metrics",
-      columns: [
-        "Market Cap",
-        "Enterprise Value",
-        "P/E Ratio (Trailing)",
-        "P/E Ratio (Forward)",
-        "Price to Sales",
-        "Price to Book",
-        "PEG Ratio",
-      ],
-    },
-    {
-      group: "Profitability Metrics",
-      columns: [
-        "Revenue",
-        "Revenue Growth",
-        "Gross Margin",
-        "EBITDA Margin",
-        "Operating Margin",
-        "EBITDA",
-        "Earnings Growth",
-      ],
-    },
-    {
-      group: "Earnings and Dividends",
-      columns: [
-        "Trailing EPS",
-        "Forward EPS",
-        "Dividend Rate",
-        "Dividend Yield",
-      ],
-    },
-    {
-      group: "Financial Health Metrics",
-      columns: [
-        "Total Debt",
-        "Debt to Equity Ratio",
-        "Quick Ratio",
-        "Current Ratio",
-        "Free Cash Flow",
-        "Operating Cash Flow",
-      ],
-    },
-    {
-      group: "Company Information",
-      columns: ["Full Time Employees", "IR Website"],
-    },
-  ];
+    if (topTableRef.current) {
+      topTableRef.current.addEventListener("scroll", handleTopScroll);
+    }
+    if (bottomTableRef.current) {
+      bottomTableRef.current.addEventListener("scroll", handleBottomScroll);
+    }
 
-  const columnKeyMap = {
-    "Market Cap": "market_cap",
-    "Enterprise Value": "enterprise_value",
-    "P/E Ratio (Trailing)": "trailing_pe",
-    "P/E Ratio (Forward)": "forward_pe",
-    "Price to Sales": "price_to_sales_trailing12mo",
-    "Price to Book": "price_to_book",
-    "PEG Ratio": "peg_ratio",
-    Revenue: "revenue",
-    "Revenue Growth": "revenue_growth",
-    "Gross Margin": "gross_margin",
-    "EBITDA Margin": "ebitda_margin",
-    "Operating Margin": "operating_margin",
-    EBITDA: "ebitda",
-    "Earnings Growth": "earnings_growth",
-    "Trailing EPS": "trailing_eps",
-    "Forward EPS": "forward_eps",
-    "Dividend Rate": "forward_dividend",
-    "Dividend Yield": "forward_dividend_yield",
-    "Total Debt": "total_debt",
-    "Debt to Equity Ratio": "debt_to_equity",
-    "Quick Ratio": "quick_ratio",
-    "Current Ratio": "current_ratio",
-    "Free Cash Flow": "free_cash_flow",
-    "Operating Cash Flow": "operating_cashflow",
-    "Full Time Employees": "full_time_employees",
-    "IR Website": "ir_website_link",
-  };
+    return () => {
+      if (topTableRef.current) {
+        topTableRef.current.removeEventListener("scroll", handleTopScroll);
+      }
+      if (bottomTableRef.current) {
+        bottomTableRef.current.removeEventListener(
+          "scroll",
+          handleBottomScroll
+        );
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    const calculateMetrics = () => {
+      const flatColumns = headers.flatMap((header) => header.columns);
+      const stats = flatColumns.reduce((acc, col) => {
+        const values = companies
+          .map((company) => parseFloat(company[columnKeyMap[col]]))
+          .filter((val) => !isNaN(val));
+        if (values.length > 0) {
+          acc[col] = {
+            low: d3.min(values),
+            high: d3.max(values),
+            median: d3.median(values),
+            mean: d3.mean(values),
+          };
+        } else {
+          acc[col] = {
+            low: "N/A",
+            high: "N/A",
+            median: "N/A",
+            mean: "N/A",
+          };
+        }
+        return acc;
+      }, {});
+      setMetrics(stats);
+    };
+    calculateMetrics();
+  }, [companies]);
 
   const handleRequestSort = (property) => {
     const isAsc = orderBy === property && order === "asc";
     setOrder(isAsc ? "desc" : "asc");
     setOrderBy(property);
+  };
+
+  const handleRemoveCompany = (ticker) => {
+    setCompanies(companies.filter((company) => company.ticker !== ticker));
   };
 
   const sortedCompanies = React.useMemo(() => {
@@ -145,46 +125,14 @@ const CompanyList = ({ companies, userSelectedCompany }) => {
     return sortedCompanies;
   }, [sortedCompanies, userSelectedCompany]);
 
-  const formatValue = (key, value) => {
-    if (value == null) return "N/A";
-
-    const floatValue = parseFloat(value);
-
-    if (
-      key.includes("margin") ||
-      key.includes("growth") ||
-      key === "forward_dividend_yield"
-    ) {
-      return `${(floatValue * 100).toFixed(2)}%`;
-    }
-
-    if (
-      key.includes("revenue") ||
-      key.includes("market_cap") ||
-      key.includes("enterprise_value") ||
-      key.includes("ebitda") ||
-      key.includes("total_debt") ||
-      key.includes("free_cash_flow") ||
-      key.includes("operating_cashflow")
-    ) {
-      return formatCurrency(floatValue);
-    }
-
-    if (key.includes("eps")) {
-      return "$" + floatValue.toString();
-    }
-
-    if (key.includes("price_to")) {
-      return floatValue.toFixed(2).toString() + "x";
-    }
-
-    return floatValue.toFixed(2);
-  };
-
   const renderTable = (companies) => {
     const flatColumns = headers.flatMap((header) => header.columns);
     return (
-      <TableContainer component={Paper} className="table-container">
+      <TableContainer
+        component={Paper}
+        className="table-container"
+        ref={topTableRef}
+      >
         <Table stickyHeader>
           <TableHead>
             <TableRow>
@@ -192,6 +140,12 @@ const CompanyList = ({ companies, userSelectedCompany }) => {
                 colSpan={1}
                 align="center"
                 className="sticky-header sticky-top-left"
+                sx={{
+                  minWidth: "200px",
+                  position: "sticky",
+                  top: 0,
+                  zIndex: 3,
+                }} // Ensure the same width as the left header in the bottom chart
               ></TableCell>
               {headers.map((header, idx) => (
                 <TableCell
@@ -199,6 +153,7 @@ const CompanyList = ({ companies, userSelectedCompany }) => {
                   colSpan={header.columns.length}
                   align="center"
                   className="sticky-header"
+                  sx={{ position: "sticky", top: 0, zIndex: 3 }}
                 >
                   {header.group}
                 </TableCell>
@@ -208,6 +163,12 @@ const CompanyList = ({ companies, userSelectedCompany }) => {
               <TableCell
                 align="center"
                 className="sticky-subheader sticky-top-left"
+                sx={{
+                  minWidth: "200px",
+                  position: "sticky",
+                  top: 36,
+                  zIndex: 3,
+                }} // Ensure the same width as the left header in the bottom chart
               >
                 Company Name
               </TableCell>
@@ -216,6 +177,12 @@ const CompanyList = ({ companies, userSelectedCompany }) => {
                   key={idx}
                   align="center"
                   className="sticky-subheader"
+                  sx={{
+                    minWidth: "150px",
+                    position: "sticky",
+                    top: 36,
+                    zIndex: 3,
+                  }} // Ensure all cells have the same width
                 >
                   <TableSortLabel
                     active={orderBy === col}
@@ -227,15 +194,39 @@ const CompanyList = ({ companies, userSelectedCompany }) => {
                 </TableCell>
               ))}
             </TableRow>
-            {userSelectedCompany && (
-              <TableRow className="fixed-row green-cell">
-                <TableCell align="center" className="sticky-left green-cell">
-                  <Button onClick={() => handleOpen(userSelectedCompany)}>
-                    {userSelectedCompany?.name}
-                  </Button>
+          </TableHead>
+          {userSelectedCompany && (
+            <TableHead>
+              <TableRow
+                className="fixed-row green-cell"
+                sx={{
+                  position: "sticky",
+                  top: 115, // Adjust this value based on your header height
+                  zIndex: 2, // Ensure it stays above other rows
+                  backgroundColor: "#dff0d8", // Adjust as needed for visibility
+                }}
+              >
+                <TableCell
+                  align="center"
+                  className="sticky-left green-cell"
+                  sx={{ minWidth: "200px" }}
+                >
+                  <Tooltip
+                    title={userSelectedCompany.company_description}
+                    sx={{ maxWidth: "600px" }} // Adjust this value to increase the width
+                  >
+                    <Box>
+                      <Button>{userSelectedCompany?.name}</Button>
+                    </Box>
+                  </Tooltip>
                 </TableCell>
                 {flatColumns.map((col, colIdx) => (
-                  <TableCell key={colIdx} align="center" className="green-cell">
+                  <TableCell
+                    key={colIdx}
+                    align="center"
+                    className="green-cell"
+                    sx={{ minWidth: "150px" }}
+                  >
                     {columnKeyMap[col] === "ir_website_link" &&
                     userSelectedCompany?.[columnKeyMap[col]] ? (
                       <a
@@ -254,8 +245,8 @@ const CompanyList = ({ companies, userSelectedCompany }) => {
                   </TableCell>
                 ))}
               </TableRow>
-            )}
-          </TableHead>
+            </TableHead>
+          )}
           <TableBody>
             {companies.map((company, idx) => (
               <TableRow
@@ -265,13 +256,42 @@ const CompanyList = ({ companies, userSelectedCompany }) => {
                     idx % 2 === 0 ? "white" : alpha("#add8e6", 0.3),
                 }}
               >
-                <TableCell align="center" className="sticky-left gray-cell">
-                  <Button onClick={() => handleOpen(company)}>
-                    {company.name}
-                  </Button>
+                <TableCell
+                  align="center"
+                  className="sticky-left gray-cell"
+                  sx={{ minWidth: "200px" }}
+                >
+                  <Tooltip
+                    title={company.company_description}
+                    sx={{ maxWidth: "600px" }} // Adjust this value to increase the width
+                  >
+                    <Box>
+                      <Button>{company.name}</Button>
+                      {userSelectedCompany?.ticker !== company.ticker && (
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            cursor: "pointer",
+                            textDecoration: "underline",
+                            color: "white",
+                            fontSize: "0.8rem",
+                            display: "block",
+                            mt: -0.5, // Reduce vertical spacing
+                          }}
+                          onClick={() => handleRemoveCompany(company.ticker)}
+                        >
+                          remove
+                        </Typography>
+                      )}
+                    </Box>
+                  </Tooltip>
                 </TableCell>
                 {flatColumns.map((col, colIdx) => (
-                  <TableCell key={colIdx} align="center">
+                  <TableCell
+                    key={colIdx}
+                    align="center"
+                    sx={{ minWidth: "150px" }}
+                  >
                     {columnKeyMap[col] === "ir_website_link" &&
                     company[columnKeyMap[col]] ? (
                       <a
@@ -294,84 +314,89 @@ const CompanyList = ({ companies, userSelectedCompany }) => {
     );
   };
 
-  const renderModal = () => (
-    <Modal open={open} onClose={handleClose}>
-      <Box
-        sx={{
-          position: "absolute",
-          top: "50%",
-          left: "50%",
-          transform: "translate(-50%, -50%)",
-          width: 400,
-          bgcolor: "background.paper",
-          border: "2px solid #000",
-          boxShadow: 24,
-          p: 4,
-        }}
+  const renderMetricsTable = () => {
+    const flatColumns = headers.flatMap((header) => header.columns);
+    const metricOrder = ["mean", "low", "high", "median"];
+    const metricLabels = {
+      mean: "Average",
+      low: "Low",
+      high: "High",
+      median: "Median",
+    };
+
+    return (
+      <TableContainer
+        component={Paper}
+        className="table-container"
+        ref={bottomTableRef}
       >
-        {selectedCompany && (
-          <>
-            <Box
-              display="flex"
-              justifyContent="space-between"
-              alignItems="center"
-            >
-              <Typography variant="h6" gutterBottom>
-                {selectedCompany.name} ({selectedCompany.exchange}:{" "}
-                {selectedCompany.ticker})
-              </Typography>
-              <IconButton onClick={handleClose}>
-                <CloseIcon />
-              </IconButton>
-            </Box>
-            <Typography variant="body2" color="text.secondary" paragraph>
-              {selectedCompany.company_description}
-            </Typography>
-          </>
-        )}
-      </Box>
-    </Modal>
-  );
-
-  const generateCSVData = () => {
-    const flatColumns = headers.flatMap((header) => header.columns);
-    const csvData = companies.map((company) => {
-      const row = {
-        "Company Name": company.name,
-        "Company Description": company.company_description,
-      };
-      flatColumns.forEach((col) => {
-        if (col === "IR Website") {
-          row[col] = company[columnKeyMap[col]] || "N/A";
-        } else {
-          row[col] = formatValue(columnKeyMap[col], company[columnKeyMap[col]]);
-        }
-      });
-      return row;
-    });
-    return csvData;
-  };
-
-  const exportToXLSX = () => {
-    const flatColumns = headers.flatMap((header) => header.columns);
-    const wsData = [
-      ["Company Name", "Company Description", ...flatColumns],
-      ...companies.map((company) => {
-        return [
-          company.name,
-          company.company_description,
-          ...flatColumns.map((col) =>
-            col === "IR Website"
-              ? company[columnKeyMap[col]] || "N/A"
-              : formatValue(columnKeyMap[col], company[columnKeyMap[col]])
-          ),
-        ];
-      }),
-    ];
-    const ws = XLSX.utils.aoa_to_sheet(wsData);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Companies");
-    XLSX.writeFile(wb, "comps.xlsx");
+        <Table stickyHeader>
+          <TableHead>
+            <TableRow>
+              <TableCell
+                colSpan={1}
+                align="center"
+                className="sticky-header sticky-top-left"
+                sx={{ minWidth: "200px" }} // Ensure the same width as the company name cells in the top chart
+              ></TableCell>
+              {headers.map((header, idx) => (
+                <TableCell
+                  key={idx}
+                  colSpan={header.columns.length}
+                  align="center"
+                  className="sticky-header"
+                >
+                  {header.group}
+                </TableCell>
+              ))}
+            </TableRow>
+            <TableRow>
+              <TableCell
+                align="center"
+                className="sticky-subheader sticky-top-left"
+                sx={{ minWidth: "200px" }} // Ensure the same width as the company name cells in the top chart
+              >
+                Metric
+              </TableCell>
+              {flatColumns.map((col, idx) => (
+                <TableCell
+                  key={idx}
+                  align="center"
+                  className="sticky-subheader"
+                  sx={{ minWidth: "150px" }}
+                >
+                  {col}
+                </TableCell>
+              ))}
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {metricOrder.map((metric, idx) => (
+              <TableRow key={idx}>
+                <TableCell
+                  align="center"
+                  className="sticky-left gray-cell"
+                  sx={{ minWidth: "200px", fontWeight: "bold" }} // Bold formatting for metric column elements
+                >
+                  {metricLabels[metric]}
+                </TableCell>
+                {flatColumns.map((col, colIdx) => (
+                  <TableCell
+                    key={colIdx}
+                    align="center"
+                    sx={{ minWidth: "150px" }} // Regular formatting for other elements
+                  >
+                    {metrics[col]
+                      ? formatValue(columnKeyMap[col], metrics[col][metric])
+                      : "N/A"}
+                  </TableCell>
+                ))}
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
+    );
   };
 
   return (
@@ -380,13 +405,13 @@ const CompanyList = ({ companies, userSelectedCompany }) => {
         <Button
           variant="outlined"
           color="primary"
-          onClick={exportToXLSX}
+          onClick={() => exportToXLSX(companies)}
           style={{ marginRight: "10px" }}
         >
           Export as XLSX
         </Button>
         <CSVLink
-          data={generateCSVData()}
+          data={generateCSVData(companies)}
           filename={"comps.csv"}
           className="btn btn-primary"
         >
@@ -400,9 +425,11 @@ const CompanyList = ({ companies, userSelectedCompany }) => {
           No results found.
         </Typography>
       ) : (
-        renderTable(finalCompaniesList)
+        <>
+          {renderTable(finalCompaniesList)}
+          <Box mt={4}>{renderMetricsTable()}</Box>
+        </>
       )}
-      {renderModal()}
     </Container>
   );
 };

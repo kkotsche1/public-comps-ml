@@ -17,6 +17,9 @@ function App() {
   const [userSelectedCompany, setUserSelectedCompany] = useState(null);
   const companyListRef = useRef(null);
 
+  // Set boolen for development (false) or live (true)
+  const isLive = false;
+
   useEffect(() => {
     // Set the document title when the component mounts
     document.title = "Comparables Finder";
@@ -37,8 +40,9 @@ function App() {
           ticker: searchData.company.value,
         };
         response = await axios.post(
-          //"http://localhost:5000/search_ticker",
-          "https://search-ticker-htv2wlstgq-uc.a.run.app",
+          isLive
+            ? "https://search-ticker-htv2wlstgq-uc.a.run.app"
+            : "http://localhost:5000/search_ticker",
           requestData
         );
 
@@ -53,8 +57,9 @@ function App() {
         );
       } else {
         response = await axios.post(
-          //"http://localhost:5000/search",
-          "https://search-description-htv2wlstgq-uc.a.run.app",
+          isLive
+            ? "https://search-description-htv2wlstgq-uc.a.run.app"
+            : "http://localhost:5000/search",
           searchData
         );
       }
